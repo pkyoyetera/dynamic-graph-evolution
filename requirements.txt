@@ -1,0 +1,11 @@
+networkx
+numpy
+pandas
+scikit-learn
+torch
+torch-cluster
+torch-geometric
+torch-geometric-temporal
+torch-scatter
+torch-sparse
+torch-spline-conv
