@@ -62,9 +62,9 @@ class TrafficModel(nn.Module):
             self.layers.append(
                 STConv(
                     num_nodes,
-                    channel_size_list[l][0],
-                    channel_size_list[l][1],
-                    channel_size_list[l][2],
+                    channel_size_list[l][0],  # input channel size
+                    channel_size_list[l][1],  # hidden channel size
+                    channel_size_list[l][2],  # output channel size
                     kernel_size,
                     K,
                     normalization,
