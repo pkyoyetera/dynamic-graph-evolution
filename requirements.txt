@@ -9,3 +9,4 @@ torch-geometric-temporal
 torch-scatter
 torch-sparse
 torch-spline-conv
+tqdm
