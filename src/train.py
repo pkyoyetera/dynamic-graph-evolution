@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import torch
@@ -8,55 +9,42 @@ import pandas as pd
 import scipy.sparse as sp
 
 from sklearn.preprocessing import StandardScaler
+from tqdm import tqdm
 
-from src.models import sts_conv_model
+from src.models.sts_conv_model import TrafficModel
 
-
-# Set some parameters
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Sequence of channel sizes
-channels = np.array([1, 16, 64], [64, 16, 64])
+channels = np.array([[1, 16, 64], [64, 16, 64]])
 
-kernel_size = 3  # Size of temporal kernel
-K = 3  # Chebyshev filter size
-
-# Training parameters
-learning_rate = 1e-3
-batch_size = 50
-num_epochs = 2
-num_layers = 2  # Number of STConv blocks
-n_his = 20  # Number of historical time steps to consider (144 used)
-n_pred = 5  # Steps into the future to predict
-
-train_prop = 0.03  # 0.7 actual
-val_prop = 0.02  # 0.2 actual
-test_prop = 0.01  # 0.1 actual
-
-# save path
-model_save_path = os.path.join('models', 'sts_conv_model.pt')
+# kernel_size = 3  # Size of temporal kernel
+# K = 3  # Chebyshev filter size
+#
+# # Training parameters
+# train_prop = 0.03  # 0.7 actual
+# val_prop = 0.02  # 0.2 actual
+# test_prop = 0.01  # 0.1 actual
 
 
 # Load data
-def data_transform(data, n_his, n_pred, device):
+def data_transform(data, args, device):
     """
     Transform data into input and target.
     :param data: slice of V matrix
-    :param n_his: int, number of historical speed observations to consider
-    :param n_pred: int, number of future speed observations to predict
+    :param args: argparse.Namespace, arguments passed to script
     """
     num_nodes = data.shape[1]
-    num_obs = len(data) - n_his - n_pred
+    num_obs = len(data) - args.n_his - args.n_pred
 
-    x = np.zeros([num_obs, n_his, num_nodes, 1])
+    x = np.zeros([num_obs, args.n_his, num_nodes, 1])
     y = np.zeros([num_obs, num_nodes])
 
     obs_idx = 0
     for i in range(num_obs):
         head = i
-        tail = i + n_his
-        x[obs_idx, :, :, :] = data[head:tail].reshape(n_his, num_nodes, 1)
-        y[obs_idx] = data[tail + n_pred - 1]
+        tail = i + args.n_his
+        x[obs_idx, :, :, :] = data[head:tail].reshape(args.n_his, num_nodes, 1)
+        y[obs_idx] = data[tail + args.n_pred - 1]
 
         obs_idx += 1
 
@@ -74,6 +62,9 @@ def evaluate_model(model, loss_fn, data_iter, edge_index, edge_weight, device):
             l_sum = loss.item() * y.shape[0]
             n += y.shape[0]
         return l_sum / n
+
+#
+# def train_model(model, train_iter, loss_fn, optimizer, )
 
 
 def evaluate_metric(model, data_iter, scaler, edge_index, edge_weight, device):
@@ -96,7 +87,7 @@ def evaluate_metric(model, data_iter, scaler, edge_index, edge_weight, device):
         return np.mean(mae), np.mean(mape), np.mean(mse)
 
 
-def load_data(args: argparse.Namespace):
+def load_data(args: argparse.Namespace, device: torch.device):
     if not args.weighted_adj_matrix_path:
         W = pd.read_csv(os.path.join('../data', 'Processed_data', 'Graph_Inputs', 'W_50.csv'))
     else:
