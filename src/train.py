@@ -158,6 +158,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    wandb.init(project='traffic-prediction')
+    wandb.config.update(args)
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Load data
@@ -175,6 +178,8 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
     min_val_loss = np.inf
+    num_training_steps = len(train_loader) * args.num_epochs
+    global_step = 0
 
     for epoch in tqdm(range(args.num_epochs)):
         l_sum, n = 0.0, 0
@@ -189,14 +194,21 @@ if __name__ == '__main__':
 
             loss.backward()
             optimizer.step()
+            wandb.log({'loss': loss.item()}, step=global_step)
 
             l_sum += loss.item() * y.shape[0]
             n += y.shape[0]
 
+            global_step += 1
+
         # Compute validation loss
         val_loss = evaluate_model(model, loss_fn, val_loader, edge_index, edge_weight, device)
+        wandb.log({'val_loss': val_loss}, step=global_step)
+
         # Save model if validation loss is lower than previous minimum
         if val_loss < min_val_loss:
             torch.save(model.state_dict(), args.model_save_path)
             min_val_loss = val_loss
         print(f"Epoch: {epoch}, Training Loss: {l_sum / n}, Validation Loss: {val_loss}")
+
+    wandb.finish()
