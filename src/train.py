@@ -147,5 +147,65 @@ def load_data(args: argparse.Namespace):
     return train_loader, val_loader, test_loader, edge_index, edge_weight, num_nodes  #, scaler
 
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--weighted_adj_matrix_path', type=str, default=None)
+    parser.add_argument('--feature_vector_path', type=str, default=None)
+    parser.add_argument('--model_save_path', type=str, default=None)
+    parser.add_argument('--num_epochs', type=int, default=2)
+    parser.add_argument('--learning_rate', type=float, default=1e-3)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--num_layers', type=int, default=2, help='Number of STConv blocks')
+    parser.add_argument('--n_his', type=int, default=20, help='Number of historical time steps to consider')
+    parser.add_argument('--n_pred', type=int, default=5, help='Steps into the future to predict')
+    parser.add_argument('--train_prop', type=float, default=0.03)
+    parser.add_argument('--val_prop', type=float, default=0.02)
+    parser.add_argument('--test_prop', type=float, default=0.01)
+    parser.add_argument('--K', type=int, default=3, help='Chebyshev filter size')
+    parser.add_argument('--kernel_size', type=int, default=3, help='Size of temporal kernel')
+    parser.add_argument('--normalization', type=str, default='sym', help='Normalization method for adjacency matrix')
 
+    args = parser.parse_args()
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # Load data
+    train_loader, val_loader, test_loader, edge_index, edge_weight, num_nodes = load_data(args, device)
+
+    # Create model
+    model = TrafficModel(
+        device,
+        num_nodes,
+        channels,
+        args,
+    ).to(device)
+
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+
+    min_val_loss = np.inf
+
+    for epoch in tqdm(range(args.num_epochs)):
+        l_sum, n = 0.0, 0
+
+        model.train()
+
+        for x, y in tqdm(train_loader, desc='Batch', position=0):
+            optimizer.zero_grad()
+
+            y_pred = model(x.to(device), edge_index, edge_weight).view(len(x), -1)
+            loss = loss_fn(y_pred, y)
+
+            loss.backward()
+            optimizer.step()
+
+            l_sum += loss.item() * y.shape[0]
+            n += y.shape[0]
+
+        # Compute validation loss
+        val_loss = evaluate_model(model, loss_fn, val_loader, edge_index, edge_weight, device)
+        # Save model if validation loss is lower than previous minimum
+        if val_loss < min_val_loss:
+            torch.save(model.state_dict(), args.model_save_path)
+            min_val_loss = val_loss
+        print(f"Epoch: {epoch}, Training Loss: {l_sum / n}, Validation Loss: {val_loss}")
