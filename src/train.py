@@ -96,25 +96,27 @@ def evaluate_metric(model, data_iter, scaler, edge_index, edge_weight, device):
         return np.mean(mae), np.mean(mape), np.mean(mse)
 
 
-def load_data(weighted_adj_matrix_path: str=None, feature_vector_path: str=None):
-    if not weighted_adj_matrix_path:
-        weighted_adj_matrix_path = os.path.join('../data', 'Processed_data', 'Graph_Inputs', 'W_50.csv')
-    W = pd.read_csv(weighted_adj_matrix_path)
+def load_data(args: argparse.Namespace):
+    if not args.weighted_adj_matrix_path:
+        W = pd.read_csv(os.path.join('../data', 'Processed_data', 'Graph_Inputs', 'W_50.csv'))
+    else:
+        W = pd.read_csv(args.weighted_adj_matrix_path)
 
-    if not feature_vector_path:
-        feature_vector_path = os.path.join('../data', 'Processed_data', 'Graph_Inputs', 'V_50.csv')
-    V = pd.read_csv(feature_vector_path)
+    if not args.feature_vector_path:
+        V = pd.read_csv(os.path.join('../data', 'Processed_data', 'Graph_Inputs', 'V_50.csv'))
+    else:
+        V = pd.read_csv(args.feature_vector_path)
 
     # Adapted from Hao Wei
     num_samples, num_nodes = V.shape
 
     # Get splits for V matrix
-    len_train = round(num_samples * train_prop)
-    len_val = round(num_samples * val_prop)
+    len_train = round(num_samples * args.train_prop)
+    len_val = round(num_samples * args.val_prop)
 
     train = V[:len_train]
     val = V[len_train: len_train+len_val]
-    test = V[len_train + len_val: len_train + len_val + round(num_samples * test_prop)]
+    test = V[len_train + len_val: len_train + len_val + round(num_samples * args.test_prop)]
 
     # Normalize values
     scaler = StandardScaler()
@@ -123,19 +125,19 @@ def load_data(weighted_adj_matrix_path: str=None, feature_vector_path: str=None)
     test = np.nan_to_num(scaler.fit_transform(test))
 
     # Create training examples with helper function
-    x_train, y_train = data_transform(train, n_his, n_pred, device)
-    x_val, y_val = data_transform(val, n_his, n_pred, device)
-    x_test, y_test = data_transform(test, n_his, n_pred, device)
+    x_train, y_train = data_transform(train, args, device)
+    x_val, y_val = data_transform(val, args, device)
+    x_test, y_test = data_transform(test, args, device)
 
     #  Create torch datasets and dataloaders
     train_data = torch.utils.data.TensorDataset(x_train, y_train)
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
 
     test_data = torch.utils.data.TensorDataset(x_test, y_test)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=args.batch_size)
 
     val_data = torch.utils.data.TensorDataset(x_val, y_val)
-    val_loader = torch.utils.data.DataLoader(val_data, batch_size=batch_size)
+    val_loader = torch.utils.data.DataLoader(val_data, batch_size=args.batch_size)
 
     # Format graph for PyG inputs
     G = sp.coo_matrix(W)
