@@ -63,6 +63,39 @@ def data_transform(data, n_his, n_pred, device):
     return torch.Tensor(x).to(device), torch.Tensor(y).to(device)
 
 
+def evaluate_model(model, loss_fn, data_iter, edge_index, edge_weight, device):
+    model.eval()
+
+    l_sum, n = 0.0, 0
+    with torch.no_grad():
+        for x, y in data_iter:
+            y_pred = model(x.to(device), edge_index, edge_weight).view(len(x), -1)
+            loss = loss_fn(y_pred, y)
+            l_sum = loss.item() * y.shape[0]
+            n += y.shape[0]
+        return l_sum / n
+
+
+def evaluate_metric(model, data_iter, scaler, edge_index, edge_weight, device):
+    model.eval()
+
+    with torch.no_grad():
+        mae, mape, mse = [], [], []
+
+        for x, y in data_iter:
+            y = scaler.inverse_transform(y.cpu().numpy()).reshape(-1)
+            y_pred = scaler.inverse_transform(
+                model(x.to(device), edge_index, edge_weight).view(len(x), -1).cpu().numpy()
+            ).reshape(-1)
+
+            d = np.abs(y - y_pred)
+            mae += d.tolist()
+            mape += (d / y).tolist()
+            mse += (d ** 2).tolist()
+
+        return np.mean(mae), np.mean(mape), np.mean(mse)
+
+
 weighted_adj_matrix_path = os.path.join('data', 'Processed_data', 'Graph_Inputs', 'W_50.csv')
 W = pd.read_csv(weighted_adj_matrix_path)
 
