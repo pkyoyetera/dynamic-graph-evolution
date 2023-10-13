@@ -140,7 +140,7 @@ def load_data(args: argparse.Namespace):
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=args.batch_size)
 
     # Format graph for PyG inputs
-    G = sp.coo_matrix(W)
+    G = sp.coo_matrix(W)  # depends on pandas==1.4.3
     edge_index = torch.tensor(np.array([G.row, G.col]), dtype=torch.int64).to(device)
     edge_weight = torch.tensor(G.data).float().to(device)
 
