@@ -138,7 +138,7 @@ def load_data(weighted_adj_matrix_path: str=None, feature_vector_path: str=None)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=batch_size)
 
     # Format graph for PyG inputs
-    G = sp.coo_matrix(W.values)
+    G = sp.coo_matrix(W)
     edge_index = torch.tensor(np.array([G.row, G.col]), dtype=torch.int64).to(device)
     edge_weight = torch.tensor(G.data).float().to(device)
 
