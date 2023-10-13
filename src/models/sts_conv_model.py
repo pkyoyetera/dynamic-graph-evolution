@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 import torch.nn as nn
 
@@ -18,7 +20,7 @@ class OutputLayer(nn.Module):
     def __init__(self, c, T, n):
         super(OutputLayer, self).__init__()
 
-        self.tconv = nn.Conv2d(c, c, (T, 1), 1, dilation=1, padding=(0, 0))
+        self.tconv1 = nn.Conv2d(c, c, (T, 1), 1, dilation=1, padding=(0, 0))
         self.ln = nn.LayerNorm([n, c])
         self.tconv2 = nn.Conv2d(c, c, (1, 1), 1, dilation=1, padding=(0, 0))
         self.fc = FullyConnLayer(c)
@@ -34,15 +36,11 @@ class OutputLayer(nn.Module):
 class TrafficModel(nn.Module):
     def __init__(
             self,
-            device,
-            num_nodes,
-            channel_size_list,
-            num_layers,
-            kernel_size,
-            K,
-            window_size,
-            normalization='sym',
-            bias=True
+            device: torch.device,
+            num_nodes: int,
+            channel_size_list,  #: List[int],
+            args: argparse.Namespace,
+            bias: bool = True
     ):
         """
         :param device: torch.device
@@ -58,25 +56,26 @@ class TrafficModel(nn.Module):
         self.layers = nn.ModuleList()
 
         # STConv blocks
-        for l in range(num_layers):
+        for l in range(args.num_layers):
             self.layers.append(
                 STConv(
                     num_nodes,
                     channel_size_list[l][0],  # input channel size
                     channel_size_list[l][1],  # hidden channel size
                     channel_size_list[l][2],  # output channel size
-                    kernel_size,
-                    K,
-                    normalization,
+                    args.kernel_size,
+                    args.K,
+                    args.normalization,
                     bias
                 )
             )
 
         # output layer
+        window_size = args.n_his
         self.layers.append(
             OutputLayer(
                 channel_size_list[-1][-1],
-                window_size-2*num_layers*(kernel_size-1),
+                window_size-2*args.num_layers*(args.kernel_size-1),
                 num_nodes
             )
         )
