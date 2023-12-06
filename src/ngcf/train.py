@@ -117,12 +117,12 @@ if __name__ == '__main__':
             if should_stop:
                 break
 
-        if args.save_results:
-            date = today.strftime("%Y-%m-%d:%H:%M:%S")
+    if args.save_results:
+        date = today.strftime("%Y-%m-%d:%H:%M:%S")
 
-            # Save model as pt file
-            if os.path.isdir(args.save_dir):
-                torch.save(model.state_dict(), args.save_dir + model_name + "_" + date + ".pt")
+        # Save model as pt file
+        if os.path.isdir(args.save_dir):
+            torch.save(model.state_dict(), args.save_dir + model_name + "_" + date + ".pt")
 
 
 
