@@ -1,9 +1,12 @@
 """
-Pytorch Implementation of Neural Graph Collaborative Filtering (NGCF) (https://doi.org/10.1145/3331184.3331267)
+Pytorch Implementation of Neural Graph Collaborative Filtering
+ (NGCF) (https://doi.org/10.1145/3331184.3331267)
 
 This file is an adaptation of the  code written by the following authors:
 Mohammed Yusuf Noor, Muhammed Imran Özyar, Calin Vasile Simon
 """
+
+from typing import List
 
 import torch
 
@@ -53,7 +56,7 @@ def train(model, data_generator, optimizer):
     return running_loss
 
 
-def split_matrix(X, n_splits=100):
+def split_matrix(X, n_splits=100) -> List:
     """
     Split a matrix/Tensor into n_folds (for the user embeddings and the R matrices)
     @param: X: matrix to be split
@@ -113,15 +116,11 @@ def eval_model(u_emb, i_emb, Rtr, Rte, k):
 
         _, test_indices = torch.topk(scores, dim=1, k=k)
         pred_items = torch.zeros_like(scores).float()
-        # pred_items.scatter_(dim=1, index=test_indices, src=torch.tensor(1.0).cuda())  # issue here
         pred_items.scatter_(
             dim=1, index=test_indices, src=torch.ones_like(test_indices).float().cuda()
         )  # this should fix issue above
 
         topk_preds = torch.zeros_like(scores).float()
-        # topk_preds.scatter_(
-        #     dim=1, index=test_indices[:, :k], src=torch.tensor(1.0)
-        # )  # issue here
         topk_preds.scatter_(
             dim=1,
             index=test_indices[:, :k],
