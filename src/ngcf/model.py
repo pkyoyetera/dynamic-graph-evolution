@@ -17,7 +17,7 @@ class NGCF(nn.Module):
         node_dropout,
         message_dropout,
         adjacency_matrix,
-        device="cpu",
+        use_cuda=False,
     ):
         super().__init__()
 
@@ -32,6 +32,7 @@ class NGCF(nn.Module):
         self.n_layers = len(self.layers)
         self.node_dropout = node_dropout
         self.message_dropout = message_dropout
+        self.use_cuda = use_cuda
 
         # Initialize weights
         self.weight_dict = self._init_weights()
@@ -47,34 +48,37 @@ class NGCF(nn.Module):
         """
         print(f"Initializing model weights...")
 
+        device = torch.device("cpu")
+        if self.use_cuda:
+            device = torch.device("cuda")
+
         weight_dict = nn.ParameterDict()
         weight_dict["user_embedding"] = nn.Parameter(
             nn.init.xavier_uniform_(torch.empty(self.n_users, self.emb_dim))
-        )
+        ).to(device)
         weight_dict["item_embedding"] = nn.Parameter(
             nn.init.xavier_uniform_(torch.empty(self.n_items, self.emb_dim))
-        )
-        # todo move to device
+        ).to(device)
 
         weight_size_list = [self.emb_dim] + self.layers
 
         for k in range(self.n_layers):
             weight_dict[f"W_gc_{k}"] = nn.Parameter(
                 nn.init.xavier_uniform_(
-                    torch.empty(weight_size_list[k], weight_size_list[k + 1])
+                    torch.empty(weight_size_list[k], weight_size_list[k + 1]).to(device)
                 )
             )
             weight_dict[f"b_gc_{k}"] = nn.Parameter(
-                nn.init.xavier_uniform_(torch.empty(1, weight_size_list[k + 1]))
+                nn.init.xavier_uniform_(torch.empty(1, weight_size_list[k + 1]).to(device))
             )
 
             weight_dict[f"W_bi_{k}"] = nn.Parameter(
                 nn.init.xavier_uniform_(
-                    torch.empty(weight_size_list[k], weight_size_list[k + 1])
+                    torch.empty(weight_size_list[k], weight_size_list[k + 1]).to(device)
                 )
             )
             weight_dict[f"b_bi_{k}"] = nn.Parameter(
-                nn.init.xavier_uniform_(torch.empty(1, weight_size_list[k + 1]))
+                nn.init.xavier_uniform_(torch.empty(1, weight_size_list[k + 1]).to(device))
             )
 
         return weight_dict
@@ -93,14 +97,26 @@ class NGCF(nn.Module):
         v = torch.FloatTensor(coo.data)
 
         # return torch.sparse.FloatTensor(indices, values, shape)
-        return torch.sparse.FloatTensor(i, v, coo.shape)
+        res = torch.sparse.FloatTensor(i, v, coo.shape)
+
+        # meh, clean this up
+        device = torch.device("cpu")
+        if self.use_cuda:
+            device = torch.device("cuda")
+
+        return res.to(device)
+        # return torch.sparse.FloatTensor(i, v, coo.shape).to(device)
 
     def _dropout_sparse(self, X):
         """
         Drop individual locations in X
         """
+        device = torch.device("cpu")
+        if self.use_cuda:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         node_dropout_mask = (
-            ((self.node_dropout) + torch.rand(X._nnz())).floor().bool()
+            ((self.node_dropout) + torch.rand(X._nnz())).floor().bool().to(device)
         )  # .to(device)
         i = X.coalesce().indices()
         v = X.coalesce()._values()
@@ -108,7 +124,9 @@ class NGCF(nn.Module):
         i[:, node_dropout_mask] = 0
         v[node_dropout_mask] = 0
 
-        x_dropout = torch.sparse.FloatTensor(i, v, X.shape)  # .to(X.device)
+        x_dropout = torch.sparse.FloatTensor(i, v, X.shape).to(X.device)
+        if self.use_cuda:
+            x_dropout = x_dropout.cuda()
 
         return x_dropout.mul(1 / (1 - self.node_dropout))
 
