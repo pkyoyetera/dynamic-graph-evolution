@@ -107,7 +107,7 @@ if __name__ == '__main__':
             results['train_loss'].append(loss)
             results['recall'].append(recall.item())
             results['ndcg'].append(ndcg)
-            results['training_time'].append(training_time)
+            # results['training_time'].append(training_time)
         else:
             results['epoch'].append(epoch)
             results['train_loss'].append(loss)
