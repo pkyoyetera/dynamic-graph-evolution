@@ -2,8 +2,8 @@
 Implementation of Neural Graph Collaborative Filtering (NGCF) (https://doi.org/10.1145/3331184.3331267)
 
 This file contains the Data class which reads the data and creates
-the adjacency matrix. The code is mostly taken from the original
-repo with minor adjustments
+the adjacency matrix. The code is adapted mostly from the original
+repository with only minor adjustments
 
 Author: Patrick Kyoyetera
 """
