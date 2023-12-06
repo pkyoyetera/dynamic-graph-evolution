@@ -113,12 +113,20 @@ def eval_model(u_emb, i_emb, Rtr, Rte, k):
 
         _, test_indices = torch.topk(scores, dim=1, k=k)
         pred_items = torch.zeros_like(scores).float()
-        pred_items.scatter_(dim=1, index=test_indices, src=torch.tensor(1.0).cuda())  # issue here
+        # pred_items.scatter_(dim=1, index=test_indices, src=torch.tensor(1.0).cuda())  # issue here
+        pred_items.scatter_(
+            dim=1, index=test_indices, src=torch.ones_like(test_indices).float().cuda()
+        )  # this should fix issue above
 
         topk_preds = torch.zeros_like(scores).float()
+        # topk_preds.scatter_(
+        #     dim=1, index=test_indices[:, :k], src=torch.tensor(1.0)
+        # )  # issue here
         topk_preds.scatter_(
-            dim=1, index=test_indices[:, :k], src=torch.tensor(1.0)
-        )  # issue here
+            dim=1,
+            index=test_indices[:, :k],
+            src=torch.ones_like(test_indices[:, :k]).float().cuda(),
+        )  # this should fix issue above
 
         TP = (test_items * topk_preds).sum(1)
         rec = TP / test_items.sum(1)
